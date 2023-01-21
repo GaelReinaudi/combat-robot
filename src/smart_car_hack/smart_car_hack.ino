@@ -322,12 +322,15 @@ void obstacles_avoidance_mode(void) {
   }
 }
 const byte PIN_RC = 2; 
+const byte PIN_DIR = 10; 
 
 RCReceive rcReceiver;
+RCReceive rcReceiverDir;
 
 void setup(void) {
 
   rcReceiver.attach(PIN_RC);
+  rcReceiverDir.attach(PIN_DIR);
   
   Serial.begin(9600);
   servo.attach(3,500,2400); //500: 0 degree  2400: 180 degree
@@ -350,22 +353,41 @@ void setup(void) {
 
 void loop(void) {
   rcReceiver.poll();
-  int val = rcReceiver.getLastRCValue() - 1300;
-//  val = val / 2;
-  int fs = max(-250, min(val, 250));
+  rcReceiverDir.poll();
+  int val_thr = rcReceiver.getValue();
+  int val_rud = rcReceiverDir.getValue();
 
-  int dir = (fs >= 0) ? 1 : -1;
-  int carspeed = fs * dir;
-  
-///  Serial.println(val);
-  Serial.println(dir);
-  Serial.println(fs);
-  analogWrite(ENA, carspeed);
-  analogWrite(ENB, carspeed);
-  digitalWrite(IN1, dir > 0 ? HIGH : LOW);
-  digitalWrite(IN2, dir > 0 ? LOW : HIGH);
-  digitalWrite(IN3, dir > 0 ? LOW : HIGH);
-  digitalWrite(IN4, dir > 0 ? HIGH : LOW);
+  val_thr -= 84;
+  val_rud -= 85;
+
+  val_thr *= 3;
+  val_rud *= 3;
+
+  int leftEngine = max(-250, min(val_thr+val_rud, 250));
+  int rightEngine = max(-250, min(val_thr-val_rud, 250));
+
+  int dirLeft = (leftEngine >= 0) ? 1 : -1;
+  int dirRight = (rightEngine >= 0) ? 1 : -1;
+
+  leftEngine *= dirLeft;
+  rightEngine *= dirRight;
+
+  leftEngine = leftEngine > 10 ? 85 + leftEngine / 2 : 0;
+  rightEngine = rightEngine > 10 ? 85 + rightEngine / 2 : 0;
+
+//  Serial.println("new");
+//  Serial.println(val_thr);
+//  Serial.println(val_rud);
+//  Serial.println(dirLeft);
+  Serial.println(leftEngine);
+//  Serial.println(dirRight);
+  Serial.println(rightEngine);
+  analogWrite(ENA, leftEngine);
+  analogWrite(ENB, rightEngine);
+  digitalWrite(IN1, dirLeft > 0 ? HIGH : LOW);
+  digitalWrite(IN2, dirLeft > 0 ? LOW : HIGH);
+  digitalWrite(IN3, dirRight > 0 ? LOW : HIGH);
+  digitalWrite(IN4, dirRight > 0 ? HIGH : LOW);
 
   // zero point determination?
   if (rcReceiver.hasNP() && !rcReceiver.hasError()) {
@@ -375,10 +397,10 @@ void loop(void) {
   }
 
   
-  getBTData(); //Bluetooth Communication Data Acquisition
-  getIRData(); //Infrared Communication Data Acquisition
-  bluetooth_mode();           //Bluetooth Serial Port Remote Control Mode
-  irremote_mode();            //Infrared NEC remote control mode
-  line_teacking_mode();       //Tracking Motion Model
-  obstacles_avoidance_mode(); //Obstacle Avoidance Motion Model
+//  getBTData(); //Bluetooth Communication Data Acquisition
+//  getIRData(); //Infrared Communication Data Acquisition
+//  bluetooth_mode();           //Bluetooth Serial Port Remote Control Mode
+//  irremote_mode();            //Infrared NEC remote control mode
+//  line_teacking_mode();       //Tracking Motion Model
+//  obstacles_avoidance_mode(); //Obstacle Avoidance Motion Model
 }
